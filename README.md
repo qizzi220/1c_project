@@ -28,15 +28,79 @@ CloudSync Component
 
 4. Архитектура системы (UML описание)
 
-Проект строится на следующих ключевых классах:
+1. Поведенческий сценарий: Цикл синхронизации (StartSync)
 
-    SyncManager: Главный контроллер, управляющий очередью задач.
+Этот процесс описывает взаимодействие объектов для актуализации файлов между локальным хранилищем и облаком.
+Алгоритм взаимодействия:
 
-    FileWatcher: Модуль, отслеживающий события в ОС (создание/изменение файла).
+    SyncManager вызывает LocalFolder::scanDirectory().
 
-    ICloudProvider (Интерфейс): Содержит методы upload(), download(), list(), remove().
+    LocalFolder обходит ФС, создает объекты FileInfo и возвращает список List<FileInfo>.
 
-    GDriveProvider / DropboxProvider: Конкретные реализации API.
+    SyncManager вызывает CloudApi::listCloudFiles().
+
+    CloudApi запрашивает данные у сервера, возвращает список List<FileInfo>.
+
+    SyncManager в цикле сравнивает объекты через compareFiles(local, cloud):
+
+        ##реализуется в поздней версии - Если hash или lastModified отличаются — вызывается resolveConflict().
+
+        Если файла нет в облаке — CloudApi::uploadFile().
+
+        Если файла нет локально — CloudApi::downloadFile().
+
+    После успешной передачи вызывается FileInfo::updateSyncDate().
+
+2. Подробное описание интерфейсов и логики
+Класс FileInfo (Data Entity)
+
+Хранит состояние конкретного узла данных.
+
+    updateSyncDate(): Устанавливает lastSyncDate в текущее системное время (std::chrono::system_clock).
+
+    ##Рекомендация по C++: Использовать std::string для путей и std::filesystem::file_time_type для меток времени.
+
+Класс LocalFolder (System IO Layer)
+
+    scanDirectory():
+
+        Реализуется через std::filesystem::recursive_directory_iterator.
+
+        Для каждого найденного файла заполняет структуру FileInfo.
+
+    readFile(String path):
+
+        Возвращает std::vector<char>.## Должен поддерживать обработку исключений (например, std::ios_base::failure), если файл заблокирован системой.
+
+Класс CloudApi (Network Layer)
+
+    authenticate(): Инициализирует сессию (OAuth2/Token). Должен вызываться перед любым запросом.
+
+    uploadFile(FileInfo file):
+
+        Открывает поток чтения через LocalFolder::readFile.
+
+        Передает бинарные данные по REST API. При успехе обновляет cloudId в объекте FileInfo.
+
+    listCloudFiles(): Парсит JSON-ответ от сервера в список объектов FileInfo.
+
+Класс SyncManager (Controller/Orchestrator)
+
+Центральный узел логики.
+
+    initialize(): Загружает конфигурацию, проверяет доступность локального пути и вызывает CloudApi::authenticate().
+
+    compareFiles(local, cloud):
+
+        Логика сравнения: приоритет отдается lastModified. Если local.lastModified > cloud.lastModified, инициируется upload.
+
+    ##resolveConflict():
+
+    ##    Стратегия по умолчанию: "Last Write Wins" (кто позже изменен, тот прав).
+
+    ##    Альтернатива: переименование локального файла в filename_conflict_date.
+
+    
 
 5. Технические требования
 
