@@ -1,0 +1,16 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        
+
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Запуск и отладка",
+            "program": "${fileDirname}/${fileBasenameNoExtension}",
+            "args": [],
+            "cwd": "${fileDirname}",
+            "preLaunchTask": "Собрать проект"
+        }
+    ]
+}
