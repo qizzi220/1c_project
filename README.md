@@ -108,7 +108,7 @@ CloudSync Component
 
     Язык: C++17 (или выше).
 
-    Зависимости: libcurl, OpenSSL, nlohmann/json (для парсинга ответов API).
+    Зависимости: libcurl, OpenSSL, nlohmann/json (для парсинга ответов API), filesystem.
 
     Кроссплатформенность: Поддержка Windows и Linux.
 
