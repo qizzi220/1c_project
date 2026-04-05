@@ -1,8 +1,7 @@
 #include "CloudApi.h"
-#include <curl/curl.h>   
-#include <nlohmann/json.hpp> 
+#include <nlohmann/json.hpp>
 #include <iostream>
-#include <fstream>       
+#include <fstream>
 
 using json = nlohmann::json;
 
@@ -28,65 +27,66 @@ bool CloudApi::connect() {
     return false;
 }
 
-bool CloudApi::uploadFile(FileInfo& file) { 
-    if (!file.exists || file.isDirectory) return false;
-
-    std::ifstream ifs(file.fullPath, std::ios::binary);
-    std::string content((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
-
-    struct curl_slist* headers = nullptr;
-    headers = curl_slist_append(headers, "Content-Type: application/octet-stream");
-    std::string url;
-    std::string method;
-    if (file.cloudId.empty()) {
-        url = "https://www.googleapis.com/upload/drive/v3/files?uploadType=media";
-        method = "POST";
-    } else {
-        url = "https://www.googleapis.com/upload/drive/v3/files/" + file.cloudId + "?uploadType=media";
-        method = "PATCH";
-    }
-
-    std::string response = sendRequest(url, method, content, headers);
+std::string CloudApi::getFileIdByName(const std::string& fileName) {
+    std::string url = "https://www.googleapis.com/drive/v3/files?q=name='" + fileName + "' and trashed=false&fields=files(id)";
+    std::string response = sendRequest(url, "GET");
     
-    if (!response.empty() && response.find("error") == std::string::npos) {
-        auto resJson = json::parse(response);
+    if (response.empty()) return "";
 
-        if (resJson.contains("id")) {
-            file.cloudId = resJson["id"].get<std::string>();
+    try {
+        auto data = json::parse(response);
+        if (data.contains("files") && !data["files"].empty()) {
+            return data["files"][0]["id"].get<std::string>();
         }
-        return true;
-    }
-    return false;
+    } catch (...) {}
+
+    return "";
 }
 
 std::vector<FileInfo> CloudApi::getCloudFiles() {
-    std::vector<FileInfo> cloudFiles;
-    if (!isConnected && !connect()) return cloudFiles;
-    std::string url = "https://www.googleapis.com/drive/v3/files?fields=files(id,name,size)";
+    std::vector<FileInfo> files;
+    if (!isConnected && !connect()) return files;
+
+    std::string url = "https://www.googleapis.com/drive/v3/files?fields=files(name,size)";
     std::string response = sendRequest(url, "GET");
 
     try {
         auto data = json::parse(response);
-        if (data.contains("files")) {
-            for (auto& item : data["files"]) {
-                FileInfo info;
-                info.name = item["name"].get<std::string>();
-                
-                if (item.contains("id")) {
-                    info.cloudId = item["id"].get<std::string>();
-                }
-
-                if (item.contains("size")) {
-                    info.size = std::stoull(item["size"].get<std::string>());
-                }
-                info.exists = true;
-                cloudFiles.push_back(info);
+        for (auto& item : data["files"]) {
+            FileInfo info;
+            info.name = item["name"].get<std::string>();
+            if (item.contains("size")) {
+                info.size = std::stoull(item["size"].get<std::string>());
             }
+            info.exists = true;
+            files.push_back(info);
         }
-    } catch (const std::exception& e) {
-        std::cerr << "Ошибка парсинга: " << e.what() << std::endl;
+    } catch (...) {
+        std::cerr << "[CloudApi] Ошибка парсинга списка файлов" << std::endl;
     }
-    return cloudFiles;
+    return files;
+}
+
+bool CloudApi::uploadFile(const FileInfo& file) {
+    std::string cloudId = getFileIdByName(file.name);
+    
+    std::ifstream ifs(file.fullPath, std::ios::binary);
+    if (!ifs.is_open()) return false;
+    std::string content((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+
+    std::string url;
+    std::string method;
+
+    if (cloudId.empty()) {
+        url = "https://www.googleapis.com/upload/drive/v3/files?uploadType=media";
+        method = "POST";
+    } else {
+        url = "https://www.googleapis.com/upload/drive/v3/files/" + cloudId + "?uploadType=media";
+        method = "PATCH";
+    }
+
+    std::string response = sendRequest(url, method, content);
+    return !response.empty() && response.find("error") == std::string::npos;
 }
 
 std::string CloudApi::sendRequest(const std::string& url, const std::string& method, const std::string& body, struct curl_slist* extraHeaders) {
@@ -100,8 +100,9 @@ std::string CloudApi::sendRequest(const std::string& url, const std::string& met
 
         curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-        
-        if (method == "POST") {
+        curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, method.c_str());
+
+        if (!body.empty()) {
             curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body.c_str());
             curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (long)body.size());
         }
@@ -115,7 +116,7 @@ std::string CloudApi::sendRequest(const std::string& url, const std::string& met
         curl_easy_cleanup(curl);
 
         if (res != CURLE_OK) {
-            std::cerr << "CURL Error: " << curl_easy_strerror(res) << std::endl;
+            std::cerr << "[CloudApi] CURL Error: " << curl_easy_strerror(res) << std::endl;
             return "";
         }
     }
