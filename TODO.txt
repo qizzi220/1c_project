@@ -2,4 +2,4 @@ g++ -std=c++17 -Iinclude src/*.cpp -o sync_app // если через терми
 // реализовать config файл, куда будем сохранять все захешированные токены
 // Написать cmakelists
 // добавить зависимостей в readme.md,да и в целом изменить readme
-
+//"nlohmann_json, CURL, Threads" библиотеки для cmake, чтобы cloudapi работало
