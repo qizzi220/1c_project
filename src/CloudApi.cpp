@@ -28,7 +28,7 @@ bool CloudApi::connect() {
     return false;
 }
 
-bool CloudApi::uploadFile(const FileInfo& file) {
+bool CloudApi::uploadFile(FileInfo& file) { 
     if (!file.exists || file.isDirectory) return false;
 
     std::ifstream ifs(file.fullPath, std::ios::binary);
@@ -36,11 +36,27 @@ bool CloudApi::uploadFile(const FileInfo& file) {
 
     struct curl_slist* headers = nullptr;
     headers = curl_slist_append(headers, "Content-Type: application/octet-stream");
+    std::string url;
+    std::string method;
+    if (file.cloudId.empty()) {
+        url = "https://www.googleapis.com/upload/drive/v3/files?uploadType=media";
+        method = "POST";
+    } else {
+        url = "https://www.googleapis.com/upload/drive/v3/files/" + file.cloudId + "?uploadType=media";
+        method = "PATCH";
+    }
 
-    std::string url = "https://www.googleapis.com/upload/drive/v3/files?uploadType=media";
-    std::string response = sendRequest(url, "POST", content, headers);
+    std::string response = sendRequest(url, method, content, headers);
     
-    return !response.empty() && response.find("error") == std::string::npos;
+    if (!response.empty() && response.find("error") == std::string::npos) {
+        auto resJson = json::parse(response);
+
+        if (resJson.contains("id")) {
+            file.cloudId = resJson["id"].get<std::string>();
+        }
+        return true;
+    }
+    return false;
 }
 
 std::vector<FileInfo> CloudApi::getCloudFiles() {
@@ -54,19 +70,22 @@ std::vector<FileInfo> CloudApi::getCloudFiles() {
         if (data.contains("files")) {
             for (auto& item : data["files"]) {
                 FileInfo info;
-                info.name = item["name"];
-                // info.cloudId = item["id"]; // поменять fileinfo
-                info.exists = true;
+                info.name = item["name"].get<std::string>();
+                
+                if (item.contains("id")) {
+                    info.cloudId = item["id"].get<std::string>();
+                }
+
                 if (item.contains("size")) {
                     info.size = std::stoull(item["size"].get<std::string>());
                 }
+                info.exists = true;
                 cloudFiles.push_back(info);
             }
         }
     } catch (const std::exception& e) {
-        std::cerr << "JSON Parse Error: " << e.what() << std::endl;
+        std::cerr << "Ошибка парсинга: " << e.what() << std::endl;
     }
-
     return cloudFiles;
 }
 
