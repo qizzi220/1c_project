@@ -15,7 +15,7 @@ struct FileInfo {
     fs::file_time_type lastWriteTime;
     bool isDirectory;
     bool exists;
-    std::string cloudId; 
+  //  std::string cloudId; 
     
     FileInfo() : size(0), isDirectory(false), exists(false) {}
     explicit FileInfo(const std::string& pathStr);
