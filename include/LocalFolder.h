@@ -1,29 +1,29 @@
-#pragma once
+#ifndef LOCAL_FOLDER_H
+#define LOCAL_FOLDER_H
+
 #include <filesystem>
 #include <vector>
 #include <string>
 #include "FileInfo.h"
 
-namespace fs = std::filesystem;
-
 class LocalFolder {
-private:
-    fs::path folderPath;
-    std::vector<FileInfo> filesList;
-
 public:
-    //конструктор - принимает путь к папке
-    explicit LocalFolder(const std::string& path);
+    // конструктор — принимает путь к папке
+    LocalFolder(const std::string& path);
 
-    //сменить папку для синхронизации
     void setPath(const std::string& newPath);
-
-    //просканировать папку и обновить filesList
     void scan();
+    const std::vector<FileInfo>& getFiles();
+    std::vector<char> readFile(const std::string& filename);
 
-    //получить текущий список файлов
-    const std::vector<FileInfo>& getFiles() const;
+    // можем проверить существует папка или нет
+    bool exists() {
+        return std::filesystem::exists(folderPath);
+    }
 
-    //прочитать содержимое файла для загрузки в облако
-    std::vector<char> readFile(const std::string& filename) const;
+private:
+    std::filesystem::path folderPath;
+    std::vector<FileInfo> filesList;
 };
+
+#endif
