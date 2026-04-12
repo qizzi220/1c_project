@@ -3,78 +3,73 @@
 #include <iostream>
 
 namespace fs = std::filesystem;
+using namespace std;
 
-//конструктор
-LocalFolder::LocalFolder(const std::string& path) {
-    folderPath = fs::path(path);
-    scan(); //сразу сканируем папку
-}
-
-//сменить папку
-void LocalFolder::setPath(const std::string& newPath) {
-    folderPath = fs::path(newPath);
+// конструктор
+LocalFolder::LocalFolder(const string& path) {
+    folderPath = path;
     scan();
 }
 
-//сканирование папки
+// меняем папку
+void LocalFolder::setPath(const string& newPath) {
+    folderPath = newPath;
+    scan();
+}
+
+// сканируем
 void LocalFolder::scan() {
-    filesList.clear(); //очищаем старый список
-    std::cout << "Сканирование папки: " << folderPath << std::endl;
-        
-    //проверяем, существует ли папка
+    filesList.clear();
+    cout << "Сканирование папкии: " << folderPath << endl;
     if (!fs::exists(folderPath)) {
-        std::cout << "Папка не существует" << std::endl;
+        cout << "Папки не существует" << endl;
         return;
     }
     
-    //проходимся по всем файлам в папке
+    // обходим все папки и файлы
     for (const auto& entry : fs::recursive_directory_iterator(folderPath)) {
-        if (entry.is_regular_file()) { //если это файл,то
-            //создаём объект FileInfo для каждого файла
-            FileInfo fileInfo(entry.path().string());
-            filesList.push_back(fileInfo);
+        if (entry.is_regular_file()) {
+            // обычный файл — добавляем в список
+            FileInfo f(entry.path().string());
+            filesList.push_back(f);
         }
     }
-    
-    std::cout << "Найдено файлов: " << filesList.size() << std::endl;
+    cout << "Найдено: " << filesList.size() << " файлов" << endl;
 }
 
-//получаем список файлов
-const std::vector<FileInfo>& LocalFolder::getFiles() const {
+// получаем список файлов
+const vector<FileInfo>& LocalFolder::getFiles() {
     return filesList;
 }
 
-//прочитать содержимое файла
-std::vector<char> LocalFolder::readFile(const std::string& filename) const {
-    std::vector<char> buffer;
-    
-    //собираем полный путь к файлу
-    fs::path fullPath = folderPath / filename;
-    
-    //проверяем, существует файл или нет
+// читаем файлик
+vector<char> LocalFolder::readFile(const string& filename) {
+    vector<char> data;
+    fs::path fullPath = folderPath;
+    fullPath /= filename;
     if (!fs::exists(fullPath)) {
-        std::cout << "Файл не найден: " << filename << std::endl;
-        return buffer; //возвращаем пустой вектор
+        cout << "Нет файла: " << filename << endl;
+        return data;
     }
     
-    //открываем файл для чтения в бинарном режиме
-    std::ifstream file(fullPath, std::ios::binary);
+    ifstream file(fullPath, ios::binary);
     
-    if (file.is_open()) {
-        //определяем размер файла
-        file.seekg(0, std::ios::end);
-        std::streamsize size = file.tellg();
-        file.seekg(0, std::ios::beg);
-        
-        //выделяем память и читаем файл
-        buffer.resize(size);
-        file.read(buffer.data(), size);
-        
-        std::cout << "Файл прочитан: " << filename << " (" << size << " байт)" << std::endl;
-    } 
-    else {
-        std::cout << "Не удалось открыть файл: " << filename << std::endl;
+    if (!file.is_open()) {
+        cout << "Не удалось открыть: " << filename << endl;
+        return data;
     }
     
-    return buffer;
+    // смотрим размер файла
+    file.seekg(0, ios::end);
+    int len = file.tellg();
+    file.seekg(0, ios::beg);
+    
+    // читаем содержимое
+    data.resize(len);
+    file.read(data.data(), len);
+    file.close();
+    
+    cout << "Файл прочитан: " << filename << " (" << len << " байт)" << endl;
+    
+    return data;
 }
