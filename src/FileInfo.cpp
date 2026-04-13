@@ -18,7 +18,7 @@ FileInfo FileAnalyzer::getDetails(const std::string& pathStr) {
     info.extension = p.extension().string();
     info.fullPath = fs::absolute(p);
     info.isDirectory = fs::is_directory(p);
-    
+    info.parentFolder = p.parent_path().filename().string();
     
     std::error_code ec;
     info.size = info.isDirectory ? 0 : fs::file_size(p, ec);
