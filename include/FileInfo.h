@@ -10,6 +10,7 @@ namespace fs = std::filesystem;
 struct FileInfo {
     std::string name;
     std::string extension;
+    std::string parentFolder;
     uintmax_t size; 
     fs::path fullPath;
     fs::file_time_type lastWriteTime;
@@ -18,9 +19,9 @@ struct FileInfo {
   //  std::string cloudId; 
     
     FileInfo() : size(0), isDirectory(false), exists(false) {}
-    explicit FileInfo(const std::string& pathStr);
+    FileInfo(const std::string& pathStr);
 
-    std::string getFormattedSize() const;
+    std::string getFormattedSize();
 };
 
 class FileAnalyzer {
