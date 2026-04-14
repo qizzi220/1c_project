@@ -6,14 +6,14 @@
 
 namespace fs = std::filesystem;
 
-// Конструктор: позволяет создать объект просто передав строку с путем
+// Конструктор
 FileInfo::FileInfo(const std::string& pathStr) {
     *this = FileAnalyzer::getDetails(fs::path(pathStr));
 }
 
 FileInfo FileAnalyzer::getDetails(const fs::path& p) {
     FileInfo info;
-    std::error_code ec; // Используем коды ошибок, чтобы программа не вылетала при ошибках доступа
+    std::error_code ec;
 
     info.exists = fs::exists(p, ec);
     if (!info.exists || ec) {
@@ -21,18 +21,18 @@ FileInfo FileAnalyzer::getDetails(const fs::path& p) {
         return info;
     }
 
-    // Базовая информация
+    // базовая информация
     info.name = p.filename().string();
     info.extension = p.extension().string();
     info.fullPath = fs::absolute(p, ec);
     info.isDirectory = fs::is_directory(p, ec);
     
-    // Имя родительской папки (если есть)
+    // родительская папка
     if (p.has_parent_path()) {
         info.parentFolder = p.parent_path().filename().string();
     }
 
-    // Размер файла (для папок обычно 0)
+    // размер файла
     if (!info.isDirectory) {
         info.size = fs::file_size(p, ec);
         if (ec) info.size = 0;
@@ -45,7 +45,6 @@ FileInfo FileAnalyzer::getDetails(const fs::path& p) {
     // Мы конвертируем его в std::time_t (секунды с 1970 года).
     auto ftime = fs::last_write_time(p, ec);
     if (!ec) {
-        // Трюк для конвертации времени файла в системное время
         auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
             ftime - fs::file_time_type::clock::now() + std::chrono::system_clock::now()
         );
@@ -57,7 +56,6 @@ FileInfo FileAnalyzer::getDetails(const fs::path& p) {
     return info;
 }
 
-// Красивое форматирование размера: 1024 B -> 1.00 KB
 std::string FileInfo::getFormattedSize() const {
     if (isDirectory) return "<DIR>";
     

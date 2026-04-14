@@ -19,7 +19,7 @@ static std::time_t parseGoogleTime(const std::string& timeStr) {
     return std::mktime(&tm);
 }
 
-// Callback для записи ответа от сервера в строку
+// запись ответа от сервера в строку
 size_t CloudApi::WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
     size_t totalSize = size * nmemb;
     if (userp) {
@@ -28,7 +28,7 @@ size_t CloudApi::WriteCallback(void* contents, size_t size, size_t nmemb, void* 
     return totalSize;
 }
 
-// Кодирование строк для URL (чтобы файлы с пробелами работали)
+// кодирование строк для URL
 std::string CloudApi::escapeString(const std::string& value) {
     CURL* curl = curl_easy_init();
     if (!curl) return value;
@@ -82,7 +82,7 @@ std::vector<FileInfo> CloudApi::getCloudFiles() {
     std::vector<FileInfo> files;
     if (!isConnected && !connect()) return files;
 
-    // Запрашиваем имя, размер и время модификации
+    // запрашиваем имя, размер и время модификации
     std::string url = "https://www.googleapis.com/drive/v3/files?fields=files(id,name,size,modifiedTime)";
     std::string response = sendRequest(url, "GET");
 
@@ -116,7 +116,7 @@ std::vector<FileInfo> CloudApi::getCloudFiles() {
 bool CloudApi::uploadFile(const FileInfo& file) {
     std::string cloudId = getFileIdByName(file.name);
     
-    // Читаем контент файла
+    // читаем контент файла
     std::ifstream ifs(file.fullPath, std::ios::binary);
     if (!ifs.is_open()) {
         std::cerr << "[CloudApi] Не удалось открыть локальный файл: " << file.fullPath << std::endl;
@@ -128,14 +128,14 @@ bool CloudApi::uploadFile(const FileInfo& file) {
     std::string method;
 
     if (cloudId.empty()) {
-        // Если файла нет — создаем новый (POST)
-        // Для простоты используем multipart/related или просто заголовок имени в параметрах
+        // если файла нет — создаем новый (POST)
+        // для простоты используется multipart/related или просто заголовок имени в параметрах
         url = "https://www.googleapis.com/upload/drive/v3/files?uploadType=media";
         // Примечание: Чтобы задать имя НОВОМУ файлу, Google требует сложный запрос.
         // Для этой реализации имя лучше передавать через метаданные, но для краткости оставим упрощенно.
         method = "POST";
     } else {
-        // Если файл есть — обновляем содержимое (PATCH)
+        // Если файл есть — патчим содержимое
         url = "https://www.googleapis.com/upload/drive/v3/files/" + cloudId + "?uploadType=media";
         method = "PATCH";
     }
@@ -199,7 +199,7 @@ std::string CloudApi::sendRequest(const std::string& url, const std::string& met
     if (curl) {
         struct curl_slist* headers = nullptr;
         
-        // Копируем extraHeaders если они есть
+        // копируем extraHeaders если они есть
         if (extraHeaders) {
             struct curl_slist* temp = extraHeaders;
             while(temp) {
@@ -224,7 +224,7 @@ std::string CloudApi::sendRequest(const std::string& url, const std::string& met
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
         curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
         
-        // Таймаут 30 секунд
+        // таймаут между реквестами,чтобы сервер не подумал,что мы боты
         curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
 
         CURLcode res = curl_easy_perform(curl);

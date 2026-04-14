@@ -3,3 +3,4 @@ g++ -std=c++17 -Iinclude src/*.cpp -o sync_app // если через терми
 // Написать cmakelists
 // добавить зависимостей в readme.md,да и в целом изменить readme
 //"nlohmann_json, CURL, Threads" библиотеки для cmake, чтобы cloudapi работало
+// добавить в readme диаграммы и картинки. А также эмодзи и тд

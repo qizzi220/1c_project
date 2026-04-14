@@ -3,7 +3,7 @@
 
 #include <vector>
 #include <filesystem>
-#include "FileInfo.h" // Файлы в одной папке инклюдим напрямую
+#include "FileInfo.h"
 
 class LocalFolder {
 public:
