@@ -3,30 +3,28 @@
 
 #include <string>
 #include <filesystem>
-#include <chrono>
+#include <ctime>
 
 namespace fs = std::filesystem;
 
 struct FileInfo {
     std::string name;
     std::string extension;
-    std::string parentFolder;
-    uintmax_t size; 
     fs::path fullPath;
-    fs::file_time_type lastWriteTime;
-    bool isDirectory;
-    bool exists;
-  //  std::string cloudId; 
-    
-    FileInfo() : size(0), isDirectory(false), exists(false) {}
-    FileInfo(const std::string& pathStr);
+    bool exists = false;
+    bool isDirectory = false;
+    uintmax_t size = 0;
+    std::time_t lastWriteTime = 0;
+    std::string parentFolder;
 
-    std::string getFormattedSize();
+    FileInfo() = default;
+    FileInfo(const std::string& pathStr);
+    std::string getFormattedSize() const;
 };
 
 class FileAnalyzer {
 public:
-    static FileInfo getDetails(const std::string& pathStr);
+    static FileInfo getDetails(const fs::path& p);
 };
 
 #endif

@@ -1,25 +1,18 @@
 #ifndef LOCAL_FOLDER_H
 #define LOCAL_FOLDER_H
 
-#include <filesystem>
 #include <vector>
-#include <string>
-#include "FileInfo.h"
+#include <filesystem>
+#include "FileInfo.h" // Файлы в одной папке инклюдим напрямую
 
 class LocalFolder {
 public:
-    // конструктор — принимает путь к папке
-    LocalFolder(const std::string& path);
-
-    void setPath(const std::string& newPath);
+    LocalFolder(const std::filesystem::path& path);
+    void setPath(const std::filesystem::path& newPath);
     void scan();
-    const std::vector<FileInfo>& getFiles();
+    const std::vector<FileInfo>& getFiles() const;
+    std::filesystem::path getPath() const { return folderPath; }
     std::vector<char> readFile(const std::string& filename);
-
-    // можем проверить существует папка или нет
-    bool exists() {
-        return std::filesystem::exists(folderPath);
-    }
 
 private:
     std::filesystem::path folderPath;
