@@ -24,7 +24,7 @@ int main() {
     // 3. Вечный токен (полученный один раз в Playground)
     std::string refreshToken = "ваш refreshToken";
 
-
+    // 4. Ваша локальная папка (CloudFiles)
     fs::path localDirPath = fs::current_path() / "CloudFiles";
 
     try {
