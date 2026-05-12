@@ -21,7 +21,7 @@ Makefile
 config.json
 .env
 my_folder/
-
+CloudFiles/
 .DS_Store
 Thumbs.db
 

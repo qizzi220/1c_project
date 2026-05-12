@@ -14,7 +14,8 @@ static std::time_t parseGoogleTime(const std::string& timeStr) {
     std::tm tm = {};
     std::istringstream ss(timeStr);
     ss >> std::get_time(&tm, "%Y-%m-%dT%H:%M:%S");
-    return (ss.fail()) ? 0 : std::mktime(&tm);
+    // Используем timegm для получения чистого UTC timestamp (исправляет смещение часовых поясов)
+    return (ss.fail()) ? 0 : timegm(&tm); 
 }
 
 CloudApi::CloudApi(const std::string& token, 
@@ -50,20 +51,30 @@ std::string CloudApi::escapeString(const std::string& value) {
     return result;
 }
 
-// Обновление access_token через refresh_token, когда старый протух
+// Обновление access_token через refresh_token, когда старый истёк
 bool CloudApi::refreshAccessToken() {
     std::string url = "https://oauth2.googleapis.com/token";
     
-    // Формируем тело запроса в формате x-www-form-urlencoded
-    std::string body = "client_id=" + clientId + 
-                       "&client_secret=" + clientSecret + 
-                       "&refresh_token=" + refreshToken + 
+    CURL* curl = curl_easy_init();
+    if (!curl) return false;
+
+    // кодируем каждый параметр
+    char* c_id = curl_easy_escape(curl, clientId.c_str(), 0);
+    char* c_sec = curl_easy_escape(curl, clientSecret.c_str(), 0);
+    char* r_tok = curl_easy_escape(curl, refreshToken.c_str(), 0);
+
+    std::string body = "client_id=" + std::string(c_id) + 
+                       "&client_secret=" + std::string(c_sec) + 
+                       "&refresh_token=" + std::string(r_tok) + 
                        "&grant_type=refresh_token";
+
+    // Освобождаем память после кодирования
+    curl_free(c_id); curl_free(c_sec); curl_free(r_tok);
 
     struct curl_slist* headers = nullptr;
     headers = curl_slist_append(headers, "Content-Type: application/x-www-form-urlencoded");
 
-    // Используем стандартный sendRequest для получения нового токена
+    // Выполняем запрос
     std::string response = sendRequest(url, "POST", body, headers);
     curl_slist_free_all(headers);
 
@@ -71,12 +82,19 @@ bool CloudApi::refreshAccessToken() {
         auto data = json::parse(response);
         if (data.contains("access_token")) {
             this->apiToken = data["access_token"].get<std::string>();
+            
+            // Если Google прислал новый refresh_token, сохраняем его
+            if (data.contains("refresh_token")) {
+                this->refreshToken = data["refresh_token"].get<std::string>();
+            }
+
             std::cout << "[CloudApi] Токен успешно обновлен!" << std::endl;
+            curl_easy_cleanup(curl);
             return true;
         }
-    } catch (const std::exception& e) {
-        std::cerr << "[CloudApi] Ошибка при парсинге нового токена: " << e.what() << std::endl;
-    }
+    } catch (...) {}
+
+    curl_easy_cleanup(curl);
     return false;
 }
 
@@ -96,7 +114,7 @@ bool CloudApi::setupRootFolder(const std::string& folderName) {
         return true;
     }
 
-    // Если папки нет — создаем её через метаданные JSON
+    // Если папки нет,то создаем её через метаданные json
     json meta = {{"name", folderName}, {"mimeType", "application/vnd.google-apps.folder"}};
     struct curl_slist* headers = curl_slist_append(nullptr, "Content-Type: application/json");
     std::string createRes = sendRequest("https://www.googleapis.com/drive/v3/files", "POST", meta.dump(), headers);
@@ -114,31 +132,37 @@ bool CloudApi::setupRootFolder(const std::string& folderName) {
 bool CloudApi::connect() {
     std::cout << "[CloudApi] Проверка соединения..." << std::endl;
     
-    // проверка токена через запрос информации об аккаунте
-    std::string res = sendRequest("https://www.googleapis.com/drive/v3/about?fields=user", "GET");
-    
-    // Если получаем ошибку (например, 401 Unauthorized), пробуем обновить токен
-    if (res.empty() || res.find("error") != std::string::npos) {
-        std::cout << "[CloudApi] Токен невалиден. Пробую обновить через Refresh Token..." << std::endl;
-        
-        if (refreshAccessToken()) {
-            // Если обновили успешно, проверяем связь еще раз с новым токеном
-            res = sendRequest("https://www.googleapis.com/drive/v3/about?fields=user", "GET");
-        } else {
-            std::cerr << "[CloudApi] Не удалось подключиться: Refresh Token не сработал." << std::endl;
-            isConnected = false;
-            return false;
+    std::string res = "";
+    bool needsRefresh = apiToken.empty();
+
+    // 1) Проверяем текущий токен, если он есть
+    if (!needsRefresh) {
+        res = sendRequest("https://www.googleapis.com/drive/v3/about?fields=user", "GET");
+        // Если Google ответил ошибкой, значит токен протух
+        if (res.empty() || res.find("error") != std::string::npos) {
+            needsRefresh = true;
         }
     }
 
+    // 2) Если токен плохой или его нет, то обновляем
+    if (needsRefresh) {
+        std::cout << "[CloudApi] Рабочий токен отсутствует или просрочен. Обновление..." << std::endl;
+        if (!refreshAccessToken()) {
+            std::cerr << "[CloudApi] Ошибка: Не удалось обновить токен. Проверьте сеть." << std::endl;
+            return false;
+        }
+        // Проверяем связь с новым токеном
+        res = sendRequest("https://www.googleapis.com/drive/v3/about?fields=user", "GET");
+    }
+
+    // 3) Финальная проверка и вход в папку
     if (!res.empty() && res.find("error") == std::string::npos) {
         isConnected = true;
         std::cout << "[CloudApi] Авторизация подтверждена." << std::endl;
-        // После успешного входа привязываемся к рабочей папке
         return setupRootFolder("CloudSync_Storage");
     }
     
-    isConnected = false;
+    std::cerr << "[CloudApi] Ошибка: Авторизация отклонена сервером Google." << std::endl;
     return false;
 }
 
@@ -241,7 +265,7 @@ bool CloudApi::downloadFile(const std::string& fileName, const fs::path& destina
     CURL* curl = curl_easy_init();
     if (!curl) return false;
 
-    // Открываем файл для записи. .string() делает путь совместимым.
+    // Открываем файл для записи
     FILE* fp = fopen(destination.string().c_str(), "wb");
     if (!fp) {
         std::cerr << "[CloudApi] Не удалось создать локальный файл: " << destination << std::endl;
@@ -276,7 +300,7 @@ std::string CloudApi::sendRequest(const std::string& url, const std::string& met
     if (curl) {
         struct curl_slist* headers = nullptr;
         
-        // копируем дополнительные заголовки (например, Content-Type)
+        // копируем дополнительные заголовки 
         if (extraHeaders) {
             for (auto* it = extraHeaders; it; it = it->next) {
                 headers = curl_slist_append(headers, it->data);
