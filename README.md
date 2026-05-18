@@ -1,13 +1,9 @@
 ```markdown
 # 🚀 CloudSync
 
-<p align="center">
-  <a href="https://github.com/qizzi220/1c_project/blob/main/LICENSE">
-    <img src="https://img.shields.io/github/license/qizzi220/1c_project?style=for-the-badge&color=3399cc" alt="License">
-  </a>
-  <img src="https://img.shields.io/badge/C%2B%2B-17%2F20-blue?style=for-the-badge&logo=c%2B%2B" alt="C++ Standards">
-  <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-lightgrey?style=for-the-badge&logo=linux" alt="Platform">
-</p>
+![License](https://img.shields.io/github/license/qizzi220/1c_project?style=flat-square&color=3399cc)
+![C++](https://img.shields.io/badge/C%2B%2B-17%2F20-blue?style=flat-square&logo=c%2B%2B)
+![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-lightgrey?style=flat-square&logo=linux)
 
 ---
 
