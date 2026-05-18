@@ -1,9 +1,11 @@
 ```markdown
 # 🚀 CloudSync
 
-![License](https://img.shields.io/github/license/qizzi220/1c_project?style=flat-square&color=3399cc)
-![C++](https://img.shields.io/badge/C%2B%2B-17%2F20-blue?style=flat-square&logo=c%2B%2B)
-![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-lightgrey?style=flat-square&logo=linux)
+# 🚀 CloudSync
+
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![CPP](https://img.shields.io/badge/C%2B%2B-17-orange.svg)
+![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows-lightgrey.svg)
 
 ---
 
