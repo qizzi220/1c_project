@@ -124,5 +124,3 @@ cmake --build build
    git commit -m "Docs: Update README with Refresh Token instructions"
    git push origin main
    ```
-
-Теперь в браузере всё будет выглядеть очень круто, и твоим коллегам будет понятно, как настраивать Refresh Token!
