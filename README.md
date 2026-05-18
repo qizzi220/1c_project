@@ -112,4 +112,4 @@ cmake --build build
 <p align="center">
   Сделано для C++ сообщества 🛠️
 </p>
-```
+
