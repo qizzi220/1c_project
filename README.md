@@ -1,102 +1,118 @@
-## **CloudSync** — это высокопроизводительный кроссплатформенный модуль на C++ для автоматической синхронизации локальных папок с облачными хранилищами (Google Drive). Идеально подходит для интеграции с внешними компонентами 1С или как самостоятельная библиотека.
+```markdown
+# 🚀 CloudSync
 
-## Преимущества нашей библиотеки:
-    *CloudSync обеспечивает высокую скорость. Сравнение файлов происходит за O(N) благодаря хеш-таблицам из модуля filesystem.
-    *CloudSync является умным синхронизатором. Логика разрешения конфликтов "Last Write Wins"
-    *CloudSync является кроссплатформенным приложением. Полная поддержка Linux и Windows благодаря filesystem
+<p align="center">
+  <a href="https://github.com/qizzi220/1c_project/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/qizzi220/1c_project?style=for-the-badge&color=3399cc" alt="License">
+  </a>
+  <img src="https://img.shields.io/badge/C%2B%2B-17%2F20-blue?style=for-the-badge&logo=c%2B%2B" alt="C++ Standards">
+  <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-lightgrey?style=for-the-badge&logo=linux" alt="Platform">
+</p>
 
-## Для наглядности процесса синхронизации используется следующая диаграмма поведения:
-    TODO:добавить в readme диаграммы
+---
 
-## Для сборки проекта вам понадобятся:
-    1. Библиотека CURL: для работы с сетевыми запросами.
-        - *Linux:* `sudo pacman -S curl` или `sudo apt install libcurl4-openssl-dev`.
-    2. Библиотека nlohmann-json: (уже включена в проект в папке `include/nlohmann`).
-    3. CMAKE: версия 3.10 или выше.
+**CloudSync** — это высокопроизводительный кроссплатформенный модуль на C++ для автоматической синхронизации локальных папок с облачными хранилищами (Google Drive). 
 
+Идеально подходит для интеграции в качестве внешнего компонента **1С:Предприятие** или как самостоятельная библиотека для систем автоматизации.
 
-## Быстрый старт (Сборка)
+## ✨ Ключевые преимущества
+
+*   **⚡ Экстремальная скорость:** Сравнение файлов происходит за $O(N)$ благодаря хеш-таблицам и модулю `std::filesystem`.
+*   **🧠 Умная синхронизация:** Логика разрешения конфликтов реализована по принципу **"Last Write Wins"** (побеждает последняя версия).
+*   **🌍 Нативная кроссплатформенность:** Полная поддержка Linux и Windows.
+*   **📦 Готовность к 1С:** Архитектура позволяет легко обернуть код во внешний компонент (Native API).
+
+---
+
+## 📊 Процесс работы
+
+```mermaid
+graph LR
+    A[Локальная папка] -- Сравнение Hash --> B{SyncManager}
+    B -- REST API --> C[Google Drive]
+    C -- Ответ --> B
+    B -- Синхронизация --> A
+```
+
+---
+
+## 🛠 Зависимости и сборка
+
+Для работы проекта необходимы:
+
+1.  **Библиотека CURL**: Для выполнения сетевых запросов.
+    *   *Linux (Ubuntu/Debian):* `sudo apt install libcurl4-openssl-dev`
+    *   *Linux (Arch):* `sudo pacman -S curl`
+2.  **[nlohmann-json](https://github.com/nlohmann/json)**: (Уже включена в проект в папке `include/nlohmann`).
+3.  **CMAKE**: Версия 3.10 или выше.
+
+### Быстрый старт (Сборка)
 
 ```bash
 # Клонировать репозиторий
 git clone https://github.com/qizzi220/1c_project.git
 cd 1c_project
 
-# Создать конфиг с твоими данными
-echo '{"client_id":"...","client_secret":"...","refresh_token":"..."}' > config.json
-
 # Собрать проект
-cmake -B build
+cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 
-# Запустить
+# Запустить тест
 ./build/cloudsync
 ```
 
-## Пример использования
+---
 
-```C++
+## 💻 Пример использования
+
+```cpp
 #include "include/CloudSync.h"
-#include <memory>
 
 int main() {
-    // Данные для инициализации (обычно подтягиваются из конфига)
-    std::string clientId = "YOUR_CLIENT_ID";
-    std::string clientSecret = "YOUR_SECRET";
-    std::string refreshToken = "YOUR_REFRESH_TOKEN";
-    std::string accessToken = ""; // Можно оставить пустым, API обновит его сам
-
-    // Создаем API с поддержкой Refresh Token
-    auto api = std::make_shared<CloudApi>(accessToken, clientId, clientSecret, refreshToken);
-    
-    // Инициализируем менеджер синхронизации
+    // Авторизация через Access Token
+    auto api = std::make_shared<CloudApi>("YOUR_ACCESS_TOKEN");
     SyncManager sync(api, "./my_sync_folder");
 
-    // Загружаем историю из конфига и запускаем процесс
-    sync.initialize("config.json");
-    sync.startSync();
-
-    // Сохраняем обновленные токены и историю в файл после работы
-    sync.saveConfig("config.json");
+    // Загрузка конфигурации и запуск
+    if (sync.initialize("config.json")) {
+        sync.startSync();
+    }
 
     return 0;
 }
 ```
 
-## Настройка Google Drive
+---
 
-Для корректной работы библиотеки CloudSync необходимо выполнить следующие шаги в Google Cloud Console:
+## ⚙️ Настройка Google Drive API
 
-1. **Создать проект**: Перейдите в [Google Cloud Console](https://console.cloud.google.com/) и создайте новый проект.
-2. **Включить API**: В разделе "Library" найдите и включите **Google Drive API**.
-3. **Создать учетные данные**:
-* Перейдите в раздел "Credentials" и создайте **OAuth 2.0 Client ID** (тип приложения: *Web application* или *Desktop app*).
-* Сохраните полученные `client_id` и `client_secret`.
-  
-4. **Получить Refresh Token**:
-* Используйте [OAuth 2.0 Playground](https://developers.google.com/oauthplayground/).
-* Выберите Google Drive API v3 (область видимости `[https://www.googleapis.com/auth/drive.file](https://www.googleapis.com/auth/drive.file)`).
-* После авторизации обменяйте код на токены. **Refresh Token** является постоянным и используется библиотекой для генерации новых сессионных токенов.
+1.  Создайте проект в [Google Cloud Console](https://console.cloud.google.com/).
+2.  Включите **Google Drive API**.
+3.  Получите **OAuth2 Access Token** (через [OAuth Playground](https://developers.google.com/oauthplayground) для тестов). 
+4.  ⚠️ **Важно:** Пока проект работает только через `Access Token` (срок жизни 60 мин). Поддержка `Refresh Token` — в планах.
 
+---
 
+## 🗺 План разработки (Roadmap)
 
-**Важно**: Благодаря реализованной поддержке Refresh Token, CloudSync автоматически обновляет сессию каждые 60 минут и сохраняет актуальное состояние в `config.json`. Вам больше не нужно вручную обновлять `access_token`.
+| Статус | Задача |
+| :---: | :--- |
+| ✅ | Реализация базового SyncManager ($O(N)$) |
+| ✅ | Поддержка Google Drive API |
+| 🏗️ | Добавление поддержки **Yandex Disk** (WebDAV) |
+| 🏗️ | Автоматическое обновление через **Refresh Token** |
+| 📅 | Продвинутое логирование событий в файл |
+| 📅 | Написание Unit-тестов |
+| 📅 | Кастомная система обработки ошибок для 1С |
 
+---
 
+## 📄 Лицензия
 
-## План разработки (Roadmap) / TODO
+Этот проект распространяется под лицензией **MIT**. Вы можете свободно использовать, изменять и распространять его даже в коммерческих целях. Подробности в файле [LICENSE](./LICENSE).
 
-  Y  Реализация базового SyncManager (O(N)).
-
-  Y  Поддержка Google Drive
-
-  Y  Реализация автоматического обновления токена через Refresh Token.
-
-  X  Добавление поддержки Yandex Disk (WebDAV).
-
-  X  Логирование событий в файл.
-
-  X  Тестирование
-
-  X  Реализация кастомных ошибок(в краааанйем случае)
-
+---
+<p align="center">
+  Разработано с ❤️ для C++ разработчиков
+</p>
+```
