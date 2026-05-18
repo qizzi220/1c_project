@@ -1,4 +1,3 @@
-```markdown
 # 🚀 CloudSync
 
 <p align="center">
