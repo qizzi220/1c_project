@@ -3,10 +3,15 @@
 #include <iomanip>
 #include <sstream>
 #include <system_error>
+#include <sys/types.h>
+#include <sys/stat.h>
+
+#ifndef _WIN32
+#include <unistd.h>
+#endif
 
 namespace fs = std::filesystem;
 
-// Конструктор
 FileInfo::FileInfo(const std::string& pathStr) {
     *this = FileAnalyzer::getDetails(fs::path(pathStr));
 }
@@ -21,18 +26,15 @@ FileInfo FileAnalyzer::getDetails(const fs::path& p) {
         return info;
     }
 
-    // базовая информация
     info.name = p.filename().string();
     info.extension = p.extension().string();
     info.fullPath = fs::absolute(p, ec);
     info.isDirectory = fs::is_directory(p, ec);
     
-    // родительская папка
     if (p.has_parent_path()) {
         info.parentFolder = p.parent_path().filename().string();
     }
 
-    // размер файла
     if (!info.isDirectory) {
         info.size = fs::file_size(p, ec);
         if (ec) info.size = 0;
@@ -40,18 +42,22 @@ FileInfo FileAnalyzer::getDetails(const fs::path& p) {
         info.size = 0;
     }
 
-    // --- ПРЕОБРАЗОВАНИЕ ВРЕМЕНИ (Кроссплатформенное для C++17) ---
-    // В C++17 last_write_time возвращает file_time_type, который сложно сравнивать напрямую.
-    // Мы конвертируем его в std::time_t (секунды с 1970 года).
-    auto ftime = fs::last_write_time(p, ec);
-    if (!ec) {
-        auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
-            ftime - fs::file_time_type::clock::now() + std::chrono::system_clock::now()
-        );
-        info.lastWriteTime = std::chrono::system_clock::to_time_t(sctp);
+    // Берем время напрямую у ОС через stat, чтобы не зависеть от багов file_clock в C++17
+#if defined(_WIN32)
+    struct _stat64 result;
+    if (_wstat64(p.wstring().c_str(), &result) == 0) {
+        info.lastWriteTime = result.st_mtime;
     } else {
         info.lastWriteTime = 0;
     }
+#else
+    struct stat result;
+    if (stat(p.string().c_str(), &result) == 0) {
+        info.lastWriteTime = result.st_mtime;
+    } else {
+        info.lastWriteTime = 0;
+    }
+#endif
 
     return info;
 }
