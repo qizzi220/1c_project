@@ -112,15 +112,4 @@ cmake --build build
 <p align="center">
   Сделано для C++ сообщества 🛠️
 </p>
-```
 
-### Что тебе нужно сделать сейчас:
-1. Открой `README.md` в редакторе.
-2. Удали оттуда **всё**.
-3. Вставь этот код.
-4. **ВАЖНО:** Чтобы изменения появились на GitHub, выполни в терминале:
-   ```bash
-   git add README.md
-   git commit -m "Docs: Update README with Refresh Token instructions"
-   git push origin main
-   ```

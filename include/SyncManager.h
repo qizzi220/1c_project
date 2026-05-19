@@ -9,14 +9,18 @@
 #include "LocalFolder.h"
 #include <nlohmann/json.hpp> 
 
+// Храним слепки времени для двусторонней проверки
+struct SyncState {
+    std::time_t localTime = 0;
+    std::time_t cloudTime = 0;
+};
+
 class SyncManager {
 public:
     SyncManager(std::shared_ptr<CloudApi> api, const std::filesystem::path& folderPath);
 
     void initialize(const std::string& configPath);
     void startSync();
-    
-    // Метод для записи всех данных (токены + история) на диск
     void saveConfig(const std::string& configPath);
 
 private:
@@ -27,10 +31,8 @@ private:
     std::shared_ptr<CloudApi> m_cloudApi;
     LocalFolder m_localFolder;
 
-    // База данных: имя файла -> время последней успешной синхронизации
-    std::map<std::string, std::time_t> m_syncHistory;
-    
-    // Путь к конфигу, чтобы менеджер знал, куда сохраняться
+    // История синхронизации: имя файла -> локальное и облачное время
+    std::map<std::string, SyncState> m_syncHistory;
     std::string m_configPath;
 };
 
