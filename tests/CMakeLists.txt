@@ -3,6 +3,7 @@ add_executable(unit_tests
     test_cloudapi.cpp
     test_localfolder.cpp
     test_syncmanager.cpp
+    test_fileinfo.cpp
 )
 
 target_link_libraries(unit_tests 

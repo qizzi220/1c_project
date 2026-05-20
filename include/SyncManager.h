@@ -9,7 +9,7 @@
 #include "LocalFolder.h"
 #include <nlohmann/json.hpp> 
 
-// Храним слепки времени для двусторонней проверки
+// два времени облачное и локальное, чтобы отслеживать изменения и там, и там
 struct SyncState {
     std::time_t localTime = 0;
     std::time_t cloudTime = 0;
@@ -31,7 +31,7 @@ private:
     std::shared_ptr<CloudApi> m_cloudApi;
     LocalFolder m_localFolder;
 
-    // История синхронизации: имя файла -> локальное и облачное время
+    // история синхронизации: имя файла -> локальное и облачное время
     std::map<std::string, SyncState> m_syncHistory;
     std::string m_configPath;
 };

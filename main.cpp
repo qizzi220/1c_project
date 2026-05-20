@@ -1,34 +1,66 @@
 #include "include/CloudSync.h"
+#include <iostream>
+#include <memory>
+#include <filesystem>
 #include <fstream>
-#include "include/nlohmann/json.hpp"
+#include <nlohmann/json.hpp>
 
+namespace fs = std::filesystem;
 using json = nlohmann::json;
 
 int main() {
-    // 1. Читаем конфиг
-    std::string configPath = "config.json";
-    std::ifstream f(configPath);
-    if (!f.is_open()) {
-        return 1; 
+#ifdef _WIN32
+    system("chcp 65001 > nul");
+#endif
+
+    std::cout << "========================================" << std::endl;
+    std::cout << "   Запуск системы CloudSync v1.2" << std::endl;
+    std::cout << "========================================" << std::endl;
+
+    std::string configName = "config.json";
+
+    try {
+        std::ifstream configFile(configName);
+        if (!configFile.is_open()) {
+            throw std::runtime_error("Не удалось открыть файл конфигурации.");
+        }
+
+        json j;
+        configFile >> j;
+        configFile.close();
+
+        if (!j.contains("client_id") || !j.contains("client_secret") || !j.contains("refresh_token")) {
+            throw std::runtime_error("В конфиге отсутствуют обязательные данные OAuth2.");
+        }
+
+        fs::path localDirPath = fs::current_path() / "CloudFiles";
+        if (j.contains("sync_folder")) {
+            localDirPath = j["sync_folder"].get<std::string>();
+        }
+
+        auto googleApi = std::make_shared<CloudApi>(
+            "", 
+            j["client_id"].get<std::string>(), 
+            j["client_secret"].get<std::string>(), 
+            j["refresh_token"].get<std::string>()
+        );
+        
+        SyncManager manager(googleApi, localDirPath);
+        manager.initialize(configName); 
+
+        manager.startSync();
+        manager.saveConfig(configName);
+
+        std::cout << "========================================" << std::endl;
+        std::cout << "   Синхронизация завершена!" << std::endl;
+        std::cout << "========================================" << std::endl;
+
+    } catch (const std::exception& e) {
+        std::cerr << std::endl;
+        std::cerr << "!!! КРИТИЧЕСКАЯ ОШИБКА !!!" << std::endl;
+        std::cerr << "-> " << e.what() << std::endl;
+        return 1;
     }
-    json config = json::parse(f);
-
-    // 2. Создаем API
-    // Передаем 4 аргумента: (пустой_токен, id, secret, refresh)
-    auto api = std::make_shared<CloudApi>(
-        "", 
-        config["client_id"].get<std::string>(),
-        config["client_secret"].get<std::string>(),
-        config["refresh_token"].get<std::string>()
-    );
-
-    // 3. Создаем менеджер
-    SyncManager sync(api, config["sync_folder"].get<std::string>());
-
-    // 4. Запускаем процесс
-    // Передаем путь к конфигу в initialize
-    sync.initialize(configPath);
-    sync.startSync();
 
     return 0;
 }

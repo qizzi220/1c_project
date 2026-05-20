@@ -11,6 +11,7 @@
 namespace fs = std::filesystem;
 using ::testing::Return;
 using ::testing::_;
+using ::testing::Invoke;
 
 // Mock-класс для API облака
 class MockCloudApi : public CloudApi {
@@ -41,7 +42,9 @@ protected:
         tempConfig = tempDir / "config.json";
         localFolder = tempDir / "local_sync";
         
-        mockApi = std::make_shared<MockCloudApi>();
+        mockApi = std::make_shared<MockCloudApi>();  
+        fs::create_directories(localFolder);
+        createDummyConfig({{"sync_history", nlohmann::json::object()}});
     }
 
     void TearDown() override {
@@ -50,7 +53,7 @@ protected:
 
     void createDummyConfig(const nlohmann::json& content) {
         std::ofstream out(tempConfig);
-        out << content.dump();
+        out << content.dump(4);
         out.close();
     }
 };
@@ -65,9 +68,8 @@ TEST_F(SyncManagerTest, InitializeThrowsOnNullApi) {
 TEST_F(SyncManagerTest, InitializeThrowsOnConnectionFailure) {
     SyncManager manager(mockApi, localFolder);
 
-    EXPECT_CALL(*mockApi, connect())
-        .WillOnce(Return(false));
 
+    EXPECT_CALL(*mockApi, connect()).WillOnce(Return(false));
     EXPECT_THROW(manager.initialize(tempConfig.string()), std::runtime_error);
 }
 
@@ -79,8 +81,8 @@ TEST_F(SyncManagerTest, InitializeSuccessAndCreatesDirectory) {
 
     SyncManager manager(mockApi, localFolder);
 
-    EXPECT_CALL(*mockApi, connect())
-        .WillOnce(Return(true));
+
+    EXPECT_CALL(*mockApi, connect()).WillOnce(Return(true));
 
     EXPECT_NO_THROW(manager.initialize(tempConfig.string()));
     EXPECT_TRUE(fs::exists(localFolder));
@@ -93,15 +95,11 @@ TEST_F(SyncManagerTest, SyncUploadsNewLocalFile) {
     EXPECT_CALL(*mockApi, connect()).WillOnce(Return(true));
     manager.initialize(tempConfig.string());
 
-    fs::create_directories(localFolder);
+
     std::ofstream(localFolder / "new_local.txt") << "content";
 
-    EXPECT_CALL(*mockApi, getCloudFiles())
-        .WillOnce(Return(std::vector<FileInfo>{})); 
-
-    EXPECT_CALL(*mockApi, uploadFile(_))
-        .WillOnce(Return(true));
-
+    EXPECT_CALL(*mockApi, getCloudFiles()).WillOnce(Return(std::vector<FileInfo>{})); 
+    EXPECT_CALL(*mockApi, uploadFile(_)).WillOnce(Return(true));
     manager.startSync();
 }
 
@@ -112,27 +110,29 @@ TEST_F(SyncManagerTest, SyncDownloadsNewCloudFile) {
     EXPECT_CALL(*mockApi, connect()).WillOnce(Return(true));
     manager.initialize(tempConfig.string());
 
-    // явное создание структуры для обхода проблем с приведением типов
+
     FileInfo cloudFile;
     cloudFile.name = "cloud_file.txt";
     cloudFile.lastWriteTime = 1000;
     
-    std::vector<FileInfo> cloudFiles;
-    cloudFiles.push_back(cloudFile);
 
-    EXPECT_CALL(*mockApi, getCloudFiles())
-        .WillOnce(Return(cloudFiles));
+    std::vector<FileInfo> cloudFiles = { cloudFile };
 
-    EXPECT_CALL(*mockApi, downloadFile("cloud_file.txt", _))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*mockApi, getCloudFiles()).WillOnce(Return(cloudFiles));
+    EXPECT_CALL(*mockApi, downloadFile("cloud_file.txt", _)).WillOnce(Return(true));
+
 
     manager.startSync();
 }
 
-// тест синхронизации: обновление устаревшего локального файла (скачивание из облака)
+
+// тест: Обновление файла, если в облаке он новее (Исправлена структура истории)
 TEST_F(SyncManagerTest, SyncDownloadsWhenCloudIsNewer) {
     nlohmann::json historyConfig = {
-        {"sync_history", {{"test.txt", 100}}}
+        {"sync_history", {
+            {"test.txt", {{"local", 100}, {"cloud", 100}}}
+        }}
+
     };
     createDummyConfig(historyConfig);
 
@@ -141,21 +141,24 @@ TEST_F(SyncManagerTest, SyncDownloadsWhenCloudIsNewer) {
     EXPECT_CALL(*mockApi, connect()).WillOnce(Return(true));
     manager.initialize(tempConfig.string());
 
-    fs::create_directories(localFolder);
-    std::ofstream(localFolder / "test.txt") << "local_data";
+
+    
+    fs::path localFilePath = localFolder / "test.txt";
+    std::ofstream(localFilePath) << "local_data";
+    fs::last_write_time(localFilePath, fs::file_time_type(std::chrono::seconds(100)));
+
+   
 
     FileInfo cloudFile;
     cloudFile.name = "test.txt";
     cloudFile.lastWriteTime = 200;
 
-    std::vector<FileInfo> cloudFiles;
-    cloudFiles.push_back(cloudFile);
 
-    EXPECT_CALL(*mockApi, getCloudFiles())
-        .WillOnce(Return(cloudFiles));
+    std::vector<FileInfo> cloudFiles = { cloudFile };
 
-    EXPECT_CALL(*mockApi, downloadFile("test.txt", _))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*mockApi, getCloudFiles()).WillOnce(Return(cloudFiles));
+    EXPECT_CALL(*mockApi, downloadFile("test.txt", _)).WillOnce(Return(true));
+
 
     manager.startSync();
 }
@@ -163,7 +166,10 @@ TEST_F(SyncManagerTest, SyncDownloadsWhenCloudIsNewer) {
 // тест синхронизации: обновление устаревшего облачного файла (загрузка локального)
 TEST_F(SyncManagerTest, SyncUploadsWhenLocalIsNewer) {
     nlohmann::json historyConfig = {
-        {"sync_history", {{"test.txt", 100}}}
+
+        {"sync_history", {
+            {"test.txt", {{"local", 100}, {"cloud", 100}}}
+        }}
     };
     createDummyConfig(historyConfig);
 
@@ -172,23 +178,19 @@ TEST_F(SyncManagerTest, SyncUploadsWhenLocalIsNewer) {
     EXPECT_CALL(*mockApi, connect()).WillOnce(Return(true));
     manager.initialize(tempConfig.string());
 
-    fs::create_directories(localFolder);
-    std::ofstream localFile(localFolder / "test.txt");
-    localFile << "new_local_data";
-    localFile.close();
+    fs::path localFilePath = localFolder / "test.txt";
+    std::ofstream(localFilePath) << "new_local_data";
+    fs::last_write_time(localFilePath, fs::file_time_type(std::chrono::seconds(200)));
 
     FileInfo cloudFile;
     cloudFile.name = "test.txt";
     cloudFile.lastWriteTime = 100;
 
-    std::vector<FileInfo> cloudFiles;
-    cloudFiles.push_back(cloudFile);
 
-    EXPECT_CALL(*mockApi, getCloudFiles())
-        .WillOnce(Return(cloudFiles));
+    std::vector<FileInfo> cloudFiles = { cloudFile };
 
-    EXPECT_CALL(*mockApi, uploadFile(_))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*mockApi, getCloudFiles()).WillOnce(Return(cloudFiles));
+    EXPECT_CALL(*mockApi, uploadFile(_)).WillOnce(Return(true));
 
     manager.startSync();
 }
