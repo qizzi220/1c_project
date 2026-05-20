@@ -14,44 +14,41 @@ int main() {
 #endif
 
     std::cout << "========================================" << std::endl;
-    std::cout << "   Запуск системы CloudSync v1.2 (Refresh Support & Save Config)" << std::endl;
+    std::cout << "   Запуск системы CloudSync v1.2" << std::endl;
     std::cout << "========================================" << std::endl;
 
-    // Начальные значения (используются только если config.json пуст или отсутствует)
-    std::string accessToken = ""; 
-    std::string clientId     = "";
-    std::string clientSecret = "";
-    std::string refreshToken = "";
-    
     std::string configName = "config.json";
-    fs::path localDirPath = fs::current_path() / "CloudFiles";
 
     try {
-        // Пытаемся загрузить актуальные токены из конфига, если он существует
         std::ifstream configFile(configName);
-        if (configFile.is_open()) {
-            json j;
-            configFile >> j;
-            accessToken = ""; // Очищаем, так как CloudApi сам обновит его через Refresh Token
-            clientId = j.value("client_id", clientId);
-            clientSecret = j.value("client_secret", clientSecret);
-            refreshToken = j.value("refresh_token", refreshToken);
+        if (!configFile.is_open()) {
+            throw std::runtime_error("Не удалось открыть файл конфигурации.");
         }
 
-        auto googleApi = std::make_shared<CloudApi>(accessToken, clientId, clientSecret, refreshToken);
-        SyncManager manager(googleApi, localDirPath);
+        json j;
+        configFile >> j;
+        configFile.close();
+
+        if (!j.contains("client_id") || !j.contains("client_secret") || !j.contains("refresh_token")) {
+            throw std::runtime_error("В конфиге отсутствуют обязательные данные OAuth2.");
+        }
+
+        fs::path localDirPath = fs::current_path() / "CloudFiles";
+        if (j.contains("sync_folder")) {
+            localDirPath = j["sync_folder"].get<std::string>();
+        }
+
+        auto googleApi = std::make_shared<CloudApi>(
+            "", 
+            j["client_id"].get<std::string>(), 
+            j["client_secret"].get<std::string>(), 
+            j["refresh_token"].get<std::string>()
+        );
         
-        // Загружаем историю синхронизации и проверяем соединение
+        SyncManager manager(googleApi, localDirPath);
         manager.initialize(configName); 
 
-        if (!googleApi->isConnectedStatus()) { 
-            throw std::runtime_error("Ошибка подключения к облаку.");
-        }
-
-        // Запуск основного процесса
         manager.startSync();
-
-        // Сохраняем состояние (новые токены и метки времени файлов)
         manager.saveConfig(configName);
 
         std::cout << "========================================" << std::endl;

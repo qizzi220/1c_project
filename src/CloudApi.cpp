@@ -14,7 +14,6 @@ static std::time_t parseGoogleTime(const std::string& timeStr) {
     std::tm tm = {};
     std::istringstream ss(timeStr);
     ss >> std::get_time(&tm, "%Y-%m-%dT%H:%M:%S");
-    // Используем timegm для получения чистого UTC timestamp (исправляет смещение часовых поясов)
     return (ss.fail()) ? 0 : timegm(&tm); 
 }
 
@@ -68,7 +67,6 @@ bool CloudApi::refreshAccessToken() {
                        "&refresh_token=" + std::string(r_tok) + 
                        "&grant_type=refresh_token";
 
-    // Освобождаем память после кодирования
     curl_free(c_id); curl_free(c_sec); curl_free(r_tok);
 
     struct curl_slist* headers = nullptr;
@@ -167,7 +165,7 @@ bool CloudApi::connect() {
 }
 
 std::string CloudApi::getFileIdByName(const std::string& fileName) {
-    // Теперь ищем файл строго внутри нашей рабочей папки (parents)
+    // Теперь ищем файл строго внутри нашей рабочей папки 
     std::string query = "name='" + fileName + "' and '" + rootFolderId + "' in parents and trashed=false";
     std::string url = "https://www.googleapis.com/drive/v3/files?q=" + escapeString(query);
     

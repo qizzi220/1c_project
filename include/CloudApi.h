@@ -8,7 +8,7 @@
 #include "FileInfo.h"
 
 namespace fs = std::filesystem;
-
+// методы были сделаны виртуальными, дабы работали тесты
 class CloudApi {
 public:
     CloudApi(const std::string& token, const std::string& clientId, 
@@ -16,22 +16,22 @@ public:
          const std::string& refreshToken);
     virtual ~CloudApi();
     
-    bool connect();
-    std::vector<FileInfo> getCloudFiles();
-    bool uploadFile(const FileInfo& file);
-    bool downloadFile(const std::string& fileName, const fs::path& destination);
+    virtual bool connect();
+    virtual std::vector<FileInfo> getCloudFiles();
+    virtual bool uploadFile(const FileInfo& file);
+    virtual bool downloadFile(const std::string& fileName, const fs::path& destination);
     
     bool isConnectedStatus() const { return isConnected; }
 
-    // Геттеры для сохранения актуальных данных в конфиг
-    std::string getClientId() const { return clientId; }
-    std::string getClientSecret() const { return clientSecret; }
-    std::string getRefreshToken() const { return refreshToken; }
+    // Геттеры также делаем виртуальными
+    virtual std::string getClientId() const { return clientId; }
+    virtual std::string getClientSecret() const { return clientSecret; }
+    virtual std::string getRefreshToken() const { return refreshToken; }
 
 private:
-    std::string clientId;     // Твой Client ID из Google Console
-    std::string clientSecret; // Твой Client Secret
-    std::string refreshToken; // Тот самый вечный токен
+    std::string clientId;
+    std::string clientSecret; 
+    std::string refreshToken; 
     
     bool refreshAccessToken();
     std::string apiToken;
