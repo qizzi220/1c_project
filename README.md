@@ -95,6 +95,7 @@
   "client_secret": "YOUR_GOOGLE_CLIENT_SECRET",
   "refresh_token": "YOUR_REFRESH_TOKEN",
 }
+```
 
 ---
 
